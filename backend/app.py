@@ -16,15 +16,17 @@ app = Flask(__name__)
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 SERVE_FRONTEND = FRONTEND_DIST.exists()
 
-if SERVE_FRONTEND:
-    CORS(app, origins="*", supports_credentials=True)
-else:
-    frontend_urls = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    CORS(
-        app,
-        origins=[url.strip() for url in frontend_urls.split(",") if url.strip()],
-        supports_credentials=True,
-    )
+DEFAULT_ORIGINS = [
+    "http://localhost:3000",
+    "https://javabica-ops-api.onrender.com",
+    "https://javabica-ops-web.onrender.com",
+]
+extra_origins = os.getenv("FRONTEND_URL", "")
+allowed_origins = DEFAULT_ORIGINS + [
+    url.strip() for url in extra_origins.split(",") if url.strip()
+]
+
+CORS(app, origins=allowed_origins)
 
 with app.app_context():
     seed_admin()
