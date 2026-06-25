@@ -1,7 +1,9 @@
-from dotenv import load_dotenv
-from flask import Flask, jsonify, request
-from flask_cors import CORS
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
 
 from auth import admin_create_user, is_admin, login_user, require_admin, require_auth
 from calculator import register_calculator_routes
@@ -11,12 +13,18 @@ load_dotenv()
 
 app = Flask(__name__)
 
-frontend_urls = os.getenv("FRONTEND_URL", "http://localhost:3000")
-CORS(
-    app,
-    origins=[url.strip() for url in frontend_urls.split(",") if url.strip()],
-    supports_credentials=True,
-)
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+SERVE_FRONTEND = FRONTEND_DIST.exists()
+
+if SERVE_FRONTEND:
+    CORS(app, origins="*", supports_credentials=True)
+else:
+    frontend_urls = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    CORS(
+        app,
+        origins=[url.strip() for url in frontend_urls.split(",") if url.strip()],
+        supports_credentials=True,
+    )
 
 with app.app_context():
     seed_admin()
@@ -26,7 +34,7 @@ register_calculator_routes(app)
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok", "frontend": SERVE_FRONTEND})
 
 
 @app.post("/api/auth/register")
@@ -101,6 +109,21 @@ def create_user():
 @require_admin
 def user_categories():
     return jsonify({"categories": [{"id": "sales", "label": "Sales"}]})
+
+
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve_frontend(path):
+    if not SERVE_FRONTEND:
+        return jsonify({"message": "Frontend not built. Run: cd frontend && npm run build"}), 404
+
+    if path.startswith("api/"):
+        return jsonify({"error": "Not found"}), 404
+
+    if path and (FRONTEND_DIST / path).is_file():
+        return send_from_directory(FRONTEND_DIST, path)
+
+    return send_from_directory(FRONTEND_DIST, "index.html")
 
 
 if __name__ == "__main__":

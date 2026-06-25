@@ -4,17 +4,9 @@ Operations platform for Javabica — admin catalog management, sales inquiries, 
 
 ## Stack
 
-- **Backend:** Flask + MongoDB Atlas
+- **Backend:** Flask + MongoDB Atlas (serves the React app in production)
 - **Frontend:** React (Vite)
-- **Auth:** JWT with admin and sales roles
-
-## Project structure
-
-```
-backend/     Flask API
-frontend/    React app
-render.yaml  Render.com deployment blueprint
-```
+- **Deploy:** Single Render web service — no `VITE_API_URL` needed
 
 ## Local development
 
@@ -22,16 +14,13 @@ render.yaml  Render.com deployment blueprint
 
 ```bash
 cd backend
-cp .env.example .env   # fill in MongoDB + admin credentials
-python -m venv .venv
-source .venv/bin/activate
+cp .env.example .env
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
 
-API runs at http://127.0.0.1:5001
-
-### Frontend
+### Frontend (separate terminal)
 
 ```bash
 cd frontend
@@ -39,44 +28,28 @@ npm install
 npm run dev
 ```
 
-App runs at http://localhost:3000 (proxies `/api` to backend).
+Open http://localhost:3000 — Vite proxies `/api` to the backend.
 
-## Environment variables
+## Production (Render)
 
-### Backend (`backend/.env`)
+One service serves both the app and API from the same URL (e.g. `https://javabica-ops-api.onrender.com`).
+
+1. Push to GitHub and sync the Render blueprint
+2. Set secrets on **javabica-ops-api**:
+   - `MONGODB_URI`
+   - `ADMIN_EMAIL` / `ADMIN_PASSWORD`
+3. Open your API service URL — login works with no frontend env vars
+
+You can delete the old **javabica-ops-web** static site; it is no longer used.
+
+## Environment variables (backend)
 
 | Variable | Description |
 |---|---|
 | `MONGODB_URI` | MongoDB Atlas connection string |
 | `MONGODB_DB_NAME` | Database name (default: `vibe_coding`) |
-| `JWT_SECRET` | Secret for signing auth tokens |
-| `ADMIN_EMAIL` | Initial admin email (seeded on startup) |
-| `ADMIN_PASSWORD` | Initial admin password |
-| `ADMIN_NAME` | Admin display name |
-| `FRONTEND_URL` | Allowed CORS origin(s), comma-separated |
-| `PORT` | Server port (default: `5001`) |
-
-### Frontend (`frontend/.env`)
-
-| Variable | Description |
-|---|---|
-| `VITE_API_URL` | Backend URL in production (empty for local dev) |
-
-## Deployment (Render)
-
-1. Push this repo to GitHub.
-2. Create a new **Blueprint** on [Render](https://render.com) from `render.yaml`.
-3. Set secret env vars in the Render dashboard:
-   - `MONGODB_URI`
-   - `ADMIN_EMAIL` / `ADMIN_PASSWORD`
-   - `FRONTEND_URL` → your deployed frontend URL (e.g. `https://javabica-ops-web.onrender.com`)
-   - `VITE_API_URL` (on the static site) → your deployed API URL (e.g. `https://javabica-ops-api.onrender.com`)
-4. Redeploy the frontend after setting `VITE_API_URL` (required at build time).
-
-### MongoDB Atlas
-
-- Add Render's outbound IP addresses (or `0.0.0.0/0` for testing) to **Network Access**.
-- Ensure the database user has read/write access.
+| `JWT_SECRET` | Auth token secret |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Initial admin account |
 
 ## Roles
 
@@ -87,6 +60,6 @@ App runs at http://localhost:3000 (proxies `/api` to backend).
 
 ## Inquiry approval
 
-- **Approved:** internal payback period &lt; 22 months
+- **Approved:** internal payback period < 22 months
 - **Rejected:** payback ≥ 22 months
 - Sales only see Approved/Rejected — no COGS, costs, or ROI figures

@@ -1,5 +1,3 @@
-import { getApiBase } from "./config.js";
-
 const TOKEN_KEY = "auth_token";
 const USER_KEY = "auth_user";
 
@@ -47,7 +45,6 @@ export function clearAuth() {
 }
 
 async function apiRequest(path, options = {}) {
-  const apiBase = getApiBase();
   const token = getToken();
   const headers = {
     "Content-Type": "application/json",
@@ -58,13 +55,7 @@ async function apiRequest(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  if (!apiBase) {
-    throw new Error(
-      "API URL is missing. On Render: set VITE_API_URL on javabica-ops-web, then click Manual Deploy → Clear build cache & deploy."
-    );
-  }
-
-  const response = await fetch(`${apiBase}${path}`, { ...options, headers });
+  const response = await fetch(path, { ...options, headers });
   const contentType = response.headers.get("content-type") || "";
   let data = {};
 
@@ -73,9 +64,7 @@ async function apiRequest(path, options = {}) {
   } else if (!response.ok) {
     throw new Error(`Request failed (${response.status})`);
   } else {
-    throw new Error(
-      `API returned an invalid response. Check VITE_API_URL is set to your API host: ${apiBase}`
-    );
+    throw new Error("Server returned an invalid response. Please try again.");
   }
 
   if (!response.ok) {
