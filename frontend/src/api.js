@@ -4,12 +4,25 @@ const TOKEN_KEY = "auth_token";
 const USER_KEY = "auth_user";
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token || token === "undefined" || token === "null") {
+    localStorage.removeItem(TOKEN_KEY);
+    return null;
+  }
+  return token;
 }
 
 export function getStoredUser() {
   const raw = localStorage.getItem(USER_KEY);
-  return raw ? JSON.parse(raw) : null;
+  if (!raw) return null;
+
+  try {
+    const user = JSON.parse(raw);
+    return user && typeof user === "object" ? user : null;
+  } catch {
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
 }
 
 export function isSalesUser(user = getStoredUser()) {
@@ -21,6 +34,9 @@ export function isAdminUser(user = getStoredUser()) {
 }
 
 export function saveAuth(token, user) {
+  if (!token || !user) {
+    throw new Error("Invalid login response from server");
+  }
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
@@ -42,10 +58,21 @@ async function apiRequest(path, options = {}) {
   }
 
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const data = await response.json().catch(() => ({}));
+  const contentType = response.headers.get("content-type") || "";
+  let data = {};
+
+  if (contentType.includes("application/json")) {
+    data = await response.json().catch(() => ({}));
+  } else if (!response.ok) {
+    throw new Error(`Request failed (${response.status})`);
+  } else if (!API_BASE && path.startsWith("/api")) {
+    throw new Error(
+      "API is not configured. Set VITE_API_URL on the frontend service and redeploy."
+    );
+  }
 
   if (!response.ok) {
-    throw new Error(data.error || "Request failed");
+    throw new Error(data.error || `Request failed (${response.status})`);
   }
 
   return data;
